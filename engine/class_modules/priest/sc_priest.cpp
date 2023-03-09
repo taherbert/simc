@@ -92,6 +92,10 @@ public:
     {
       m *= 1 + priest().talents.shadow.insidious_ire->effectN( 1 ).percent();
     }
+    if ( priest().talents.discipline.expiation.enabled() )
+    {
+      m *= 1.0 + priest().talents.discipline.expiation->effectN( 1 ).percent();
+    }
 
     return m;
   }
@@ -145,6 +149,11 @@ public:
     if ( priest().talents.discipline.harsh_discipline.enabled() )
     {
       priest().buffs.harsh_discipline->trigger();
+    }
+    if ( priest().talents.discipline.expiation.enabled() )
+    {
+      impact_action = new expiation_t( priest() );
+      add_child( impact_action );
     }
   }
 
@@ -2152,6 +2161,7 @@ void priest_t::init_background_actions()
   background_actions.echoing_void = new actions::spells::echoing_void_t( *this );
 
   init_background_actions_shadow();
+  init_background_actions_discipline();
 }
 
 void priest_t::do_dynamic_regen( bool forced )

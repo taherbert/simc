@@ -32,6 +32,7 @@ struct echoing_void_t;
 struct idol_of_cthun_t;
 struct shadow_word_pain_t;
 struct mental_fortitude_t;
+struct expiation_t;
 }  // namespace actions::spells
 
 /**
@@ -341,6 +342,7 @@ public:
       player_talent_t harsh_discipline;
       const spell_data_t* harsh_discipline_ready;
       const spell_data_t* blaze_of_light;
+      player_talent_t expiation;
       // Row 10
       player_talent_t twilight_equilibrium;
       const spell_data_t* twilight_equilibrium_holy_amp;
@@ -511,6 +513,7 @@ public:
     propagate_const<actions::spells::shadow_word_pain_t*> shadow_word_pain;
     propagate_const<actions::spells::mental_fortitude_t*> mental_fortitude;
     propagate_const<actions::spells::pain_of_death_t*> pain_of_death;
+    propagate_const<actions::spells::expiation_t*> expiation;
   } background_actions;
 
   // Items
@@ -620,6 +623,7 @@ private:
   void init_rng_discipline();
 
   void init_background_actions_shadow();
+  void init_background_actions_discipline();
   std::unique_ptr<expr_t> create_expression_discipline( action_t* a, const util::string_view name_str );
   action_t* create_action_discipline( util::string_view name, util::string_view options_str );
 

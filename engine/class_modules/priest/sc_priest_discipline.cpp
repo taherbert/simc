@@ -4,8 +4,10 @@
 // Wiki: https://github.com/simulationcraft/simc/wiki/Priests
 // ==========================================================================
 
+#include "action/action_state.hpp"
 #include "sc_enums.hpp"
 #include "sc_priest.hpp"
+#include "util/generic.hpp"
 
 #include "simulationcraft.hpp"
 
@@ -346,6 +348,40 @@ struct lights_wrath_t final : public priest_spell_t
   }
 };
 
+struct expiation_t final : public priest_spell_t
+{
+  timespan_t consume_time;
+
+  expiation_t( priest_t& p )
+    : priest_spell_t( "expiation", p, p.talents.discipline.expiation ),
+      consume_time( timespan_t::from_seconds( data().effectN( 2 ).base_value() ) )
+  {
+    background = true;
+
+    // TODO: check if this double dips from any multipliers or takes 100% exactly the calculated dot values.
+    // also check that the STATE_NO_MULTIPLIER does exactly what we expect.
+    snapshot_flags &= ~STATE_NO_MULTIPLIER;
+  }
+
+  void impact( action_state_t* s ) override
+  {
+    priest_td_t& td = get_td( s->target );
+    dot_t* dot      = td.dots.shadow_word_pain;
+    if ( priest().talents.discipline.purge_the_wicked.enabled() )
+    {
+      dot = td.dots.purge_the_wicked;
+    }
+    // tick_damage_over_time from shadow.cpp
+    auto dot_damage = priest().tick_damage_over_time( consume_time, dot );
+    base_dd_min = base_dd_max = dot_damage;
+    sim->print_debug( "{} {} calculated dot={} damage={}", *player, *this, dot, dot_damage );
+
+    priest_spell_t::impact( s );
+
+    dot->adjust_duration( -consume_time );
+  }
+};
+
 }  // namespace actions::spells
 
 namespace buffs
@@ -440,6 +476,7 @@ void priest_t::init_spells_discipline()
   talents.discipline.harsh_discipline       = ST( "Harsh Discipline" );
   talents.discipline.harsh_discipline_ready = find_spell( 373183 );
   talents.discipline.blaze_of_light         = find_spell( 215768 );
+  talents.discipline.expiation              = ST( "Expiation" );
   // Row 10
   talents.discipline.twilight_equilibrium            = ST( "Twilight Equilibrium" );
   talents.discipline.twilight_equilibrium_holy_amp   = find_spell( 390706 );
@@ -496,6 +533,14 @@ action_t* priest_t::create_action_discipline( util::string_view name, util::stri
 std::unique_ptr<expr_t> priest_t::create_expression_discipline( action_t*, util::string_view /*name_str*/ )
 {
   return {};
+}
+
+void priest_t::init_background_actions_discipline()
+{
+  if ( talents.discipline.expiation.enabled() )
+  {
+    background_actions.expiation = new actions::spells::expiation_t( *this );
+  }
 }
 
 }  // namespace priestspace

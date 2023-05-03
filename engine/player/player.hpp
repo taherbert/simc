@@ -726,26 +726,58 @@ struct player_t : public actor_t
 
   using resource_callback_function_t = std::function<void()>;
 
+  template <typename T>
+  struct player_option_t
+  {
+    T default_value;
+    T current_value;
+
+    player_option_t( const T val = T() ) : default_value( val ), current_value( val ) {}
+
+    template <typename U = T, typename = std::enable_if_t<std::is_same_v<U, std::string>>>
+    player_option_t( const char* val ) : default_value( val ), current_value( val ) {}
+
+    operator T&() { return current_value; }
+    operator T&() const { return current_value; }
+
+    template <typename U = T, typename = std::enable_if_t<std::is_same_v<U, std::string>>>
+    operator std::string_view() const { return current_value; }
+
+    bool is_default() { return current_value == default_value; }
+  };
+
   struct shadowlands_opt_t
   {
     /// Type stat gained from So'leah's Secret Technique
     /// Buff type: "mastery", "haste", "crit", "versatility"
     /// Overrides sim-wide option with a player-specific one
     /// Empty value indicates use sim-wide option.
-    std::string soleahs_secret_technique_type = "";
+    player_option_t<std::string> soleahs_secret_technique_type;
   } shadowlands_opts;
 
   struct dragonflight_opt_t
   {
     /// Stat to trigger for Gyroscopic Kaleidoscope
     /// Buff type: "mastery", "haste", "crit", "versatility"
-    std::string gyroscopic_kaleidoscope_stat = "haste";
+    player_option_t<std::string> gyroscopic_kaleidoscope_stat = "haste";
     // Ruby Whelp Shell training levels
     // Overrides sim-wide option with a player-specific one
-    std::string ruby_whelp_shell_training = "";
+    player_option_t<std::string> ruby_whelp_shell_training;
     // A list of context-aware procs for Ruby Whelp Shell
     // Overrides sim-wide option with a player-specific one
-    std::string ruby_whelp_shell_context = "";
+    player_option_t<std::string> ruby_whelp_shell_context;
+    // Set the dragonflight for Glimmering Chromatic Orb
+    // Overrides sim-wide option with a player-specific one
+    player_option_t<std::string> ominous_chromatic_essence_dragonflight = "obsidian";
+    // Set the allies dragonflights for Glimmering Chromatic Orb
+    // Overrides sim-wide option with a player-specific one
+    player_option_t<std::string> ominous_chromatic_essence_allies;
+    // Set the target type for Askhandur's Damage Doubling
+    // Overrides sim-wide option with a player-specific one
+    player_option_t<bool> ashkandur_humanoid;
+    // Set the initial starting state for the igneous flowstone trinket Ebb/Flood/High/Low Tides.
+    // Overrides sim-wide option with a player-specific one
+    player_option_t<std::string> flowstone_starting_state = "high";
   } dragonflight_opts;
 
 private:

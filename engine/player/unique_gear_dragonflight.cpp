@@ -456,7 +456,7 @@ void wafting_devotion( special_effect_t& effect )
     buff = create_buff<stat_buff_t>( effect.player, buff_name, new_trigger );
   }
   
-  buff->set_stat( STAT_HASTE_RATING, haste )
+  buff->add_stat( STAT_HASTE_RATING, haste )
       ->add_stat( STAT_SPEED_RATING, speed );
   
   effect.name_str = buff_name;
@@ -626,23 +626,23 @@ namespace items
 {
 // Trinkets
 
-void dragonfire_bomb_dispenser( special_effect_t &effect )
-{ 
+void dragonfire_bomb_dispenser( special_effect_t& effect )
+{
   // Skilled Restock
   auto restock_driver = find_special_effect( effect.player, 408667 );
   if ( restock_driver )
   {
-    auto skilled_restock = make_buff( effect.player, "skilled_restock", effect.player->find_spell( 408770 ), effect.item) // 408770
-      ->set_quiet( true )
-      ->set_stack_change_callback( [ & ] ( buff_t *buff, int, int )
-    {
-      if ( buff->at_max_stacks() )
-      {
-        // At 60 stacks gain a charge
-        effect.execute_action->cooldown->reset( true );
-        buff->expire();
-      }
-    } );
+    auto skilled_restock =
+        make_buff( effect.player, "skilled_restock", effect.player->find_spell( 408770 ), effect.item )  // 408770
+            ->set_quiet( true )
+            ->set_stack_change_callback( [ & ]( buff_t* buff, int, int ) {
+              if ( buff->at_max_stacks() )
+              {
+                // At 60 stacks gain a charge
+                effect.execute_action->cooldown->reset( true );
+                buff->expire();
+              }
+            } );
 
     restock_driver->custom_buff = skilled_restock;
     restock_driver->proc_flags2_ = PF2_CRIT;
@@ -652,11 +652,11 @@ void dragonfire_bomb_dispenser( special_effect_t &effect )
 
   // AoE Explosion
   auto explode = create_proc_action<generic_aoe_proc_t>( "dragonfire_bomb_aoe", effect, "dragonfire_bomb_aoe", 408667 );
+  explode->name_str_reporting = "AOE";
+  explode->base_dd_min = explode->base_dd_max =
+      effect.player->find_spell( 408694 )->effectN( 2 ).average( effect.item );
 
-  explode->base_dd_min = explode->base_dd_max = effect.player->find_spell( 408694 )->effectN( 2 ).average( effect.item );
-
-  effect.player->register_on_kill_callback( [ effect, explode ] ( player_t *t )
-  {
+  effect.player->register_on_kill_callback( [ effect, explode ]( player_t* t ) {
     if ( effect.player->sim->event_mgr.canceled )
       return;
 
@@ -668,26 +668,27 @@ void dragonfire_bomb_dispenser( special_effect_t &effect )
   // ST Damage
   struct dragonfire_bomb_st_t : public proc_spell_t
   {
-    dragonfire_bomb_st_t( const special_effect_t &e ) :
-      proc_spell_t( "dragonfire_bomb_st", e.player, e.player->find_spell( 408682 ), e.item )
+    dragonfire_bomb_st_t( const special_effect_t& e )
+      : proc_spell_t( "dragonfire_bomb_st", e.player, e.player->find_spell( 408682 ), e.item )
     {
       background = true;
       base_dd_min = base_dd_max = e.player->find_spell( 408667 )->effectN( 1 ).average( e.item );
+      name_str_reporting = "ST";
     }
   };
 
   create_proc_action<dragonfire_bomb_st_t>( "dragonfire_bomb_st", effect );
-  
+
   // DoT Driver
   struct dragonfire_bomb_missile_t : public proc_spell_t
   {
-    dragonfire_bomb_missile_t( const special_effect_t &e ) :
-      proc_spell_t( "dragonfire_bomb_dispenser", e.player, e.player->find_spell( e.spell_id ), e.item )
+    dragonfire_bomb_missile_t( const special_effect_t& e )
+      : proc_spell_t( "dragonfire_bomb_dispenser", e.player, e.player->find_spell( e.spell_id ), e.item )
     {
       background = true;
     }
 
-    void impact( action_state_t *s ) override
+    void impact( action_state_t* s ) override
     {
       proc_spell_t::impact( s );
 
@@ -701,21 +702,19 @@ void dragonfire_bomb_dispenser( special_effect_t &effect )
         td->debuff.dragonfire_bomb->trigger();
       }
     }
-
   };
 
+  // TODO: the driver has two cooldown categories, 1141 for the on-use and 2170 for the charge. currently the generation
+  // script prioritizes the charge category so we manually set it here until the script can be adjusted.
+  effect.cooldown_category_ = 1141;
   effect.execute_action = create_proc_action<dragonfire_bomb_missile_t>( "dragonfire_bomb_dispenser", effect );
 }
 
-
 struct dragonfire_bomb_dispenser_initializer_t : public item_targetdata_initializer_t
 {
+  dragonfire_bomb_dispenser_initializer_t() : item_targetdata_initializer_t( 408671 ) {}
 
-  dragonfire_bomb_dispenser_initializer_t() : item_targetdata_initializer_t( 408671 )
-  {
-  }
-  
-  void operator()( actor_target_data_t *td ) const override
+  void operator()( actor_target_data_t* td ) const override
   {
     if ( !find_effect( td->source ) )
     {
@@ -725,28 +724,28 @@ struct dragonfire_bomb_dispenser_initializer_t : public item_targetdata_initiali
 
     struct dragonfire_bomb_debuff_t : buff_t
     {
-      player_t *target;
-      action_t *bomb;
+      player_t* target;
+      action_t* bomb;
 
-      dragonfire_bomb_debuff_t( actor_target_data_t &td, util::string_view n, const spell_data_t *s ) 
-        : buff_t( td, n, s ), target( td.target ), bomb ( td.source->find_action( "dragonfire_bomb_st" ) )
-      {
-      }
+      dragonfire_bomb_debuff_t( actor_target_data_t& td, util::string_view n, const spell_data_t* s )
+        : buff_t( td, n, s ), target( td.target ), bomb( td.source->find_action( "dragonfire_bomb_st" ) )
+      {}
 
       void expire_override( int expiration_stacks, timespan_t remaining_duration ) override
       {
         buff_t::expire_override( expiration_stacks, remaining_duration );
 
-        if ( bomb )   
+        if ( bomb )
           bomb->execute_on_target( target );
       }
     };
 
-    td->debuff.dragonfire_bomb = new dragonfire_bomb_debuff_t( *td, "dragonfire_bomb", td->source->find_spell( 408675 ) ); // IT GONNA BLOW!
+    td->debuff.dragonfire_bomb =
+        new dragonfire_bomb_debuff_t( *td, "dragonfire_bomb", td->source->find_spell( 408675 ) );  // IT GONNA BLOW!
     td->debuff.dragonfire_bomb->reset();
   }
 };
-  
+
 /* Burgeoning Seed
   * id=193634
   * trigger = 382108
@@ -1492,10 +1491,12 @@ void igneous_flowstone( special_effect_t& effect )
 
   auto low_tide_trigger = create_buff<buff_t>( effect.player, effect.player->find_spell( 402896 ) );
 
-  auto low_tide_driver      = new special_effect_t( effect.player );
-  low_tide_driver->type     = SPECIAL_EFFECT_EQUIP;
-  low_tide_driver->source   = SPECIAL_EFFECT_SOURCE_ITEM;
-  low_tide_driver->spell_id = low_tide_trigger->data().id();
+  auto low_tide_driver       = new special_effect_t( effect.player );
+  low_tide_driver->type      = SPECIAL_EFFECT_EQUIP;
+  low_tide_driver->source    = SPECIAL_EFFECT_SOURCE_ITEM;
+  low_tide_driver->spell_id  = low_tide_trigger->data().id();
+  // Add a cooldown to prevent a double trigger for classes like windwalker
+  low_tide_driver->cooldown_ = 1.5_s;
   effect.player->special_effects.push_back( low_tide_driver );
 
   auto low_tide_cb = new low_tide_cb_t( *low_tide_driver, low_tide_trigger, crit_buff );
@@ -1504,10 +1505,12 @@ void igneous_flowstone( special_effect_t& effect )
 
   auto high_tide_trigger = create_buff<buff_t>( effect.player, effect.player->find_spell( 402903 ) );
 
-  auto high_tide_driver      = new special_effect_t( effect.player );
-  high_tide_driver->type     = SPECIAL_EFFECT_EQUIP;
-  high_tide_driver->source   = SPECIAL_EFFECT_SOURCE_ITEM;
-  high_tide_driver->spell_id = high_tide_trigger->data().id();
+  auto high_tide_driver       = new special_effect_t( effect.player );
+  high_tide_driver->type      = SPECIAL_EFFECT_EQUIP;
+  high_tide_driver->source    = SPECIAL_EFFECT_SOURCE_ITEM;
+  high_tide_driver->spell_id  = high_tide_trigger->data().id();
+  // Add a cooldown to prevent a double trigger for classes like windwalker
+  high_tide_driver->cooldown_ = 1.5_s;
   effect.player->special_effects.push_back( high_tide_driver );
 
   auto high_tide_cb = new high_tide_cb_t( *high_tide_driver, high_tide_trigger, damage );
@@ -1560,7 +1563,7 @@ void igneous_flowstone( special_effect_t& effect )
 
   effect.player->register_combat_begin(
       [ low_tide_trigger, high_tide_trigger, low_tide_counter, high_tide_counter ]( player_t* p ) {
-        auto starting_state = p->sim->dragonflight_opts.flowstone_starting_state;
+        auto starting_state = p->dragonflight_opts.flowstone_starting_state;
         if ( util::str_compare_ci( starting_state, "low" ) )
           low_tide_trigger->trigger();
         else if ( util::str_compare_ci( starting_state, "ebb" ) )
@@ -1913,15 +1916,8 @@ void way_of_controlled_currents( special_effect_t& effect )
       create_buff<buff_t>( effect.player, "way_of_controlled_currents_stack", effect.player->find_spell( 381965 ) )
           ->set_name_reporting( "Stack" )
           ->add_invalidate( CACHE_ATTACK_SPEED );
-  //In 10.1 the effect is always 2% rather than scaling with item level
-  if( effect.player -> is_ptr() )
-  {
-    stack->set_default_value( stack->data().effectN( 1 ).base_value() * 0.01 );
-  }
-  else
-  {
-    stack->set_default_value( stack->data().effectN( 1 ).average( effect.item ) * 0.01 ); 
-  }
+  
+  stack->set_default_value( stack->data().effectN( 1 ).base_value() * 0.01 );
 
   effect.player->buffs.way_of_controlled_currents = stack;
 
@@ -3325,13 +3321,13 @@ void ruby_whelp_shell( special_effect_t& effect )
   std::vector<std::string_view> splits;
 
   std::string_view training_str = effect.player->sim->dragonflight_opts.ruby_whelp_shell_training;
-  if ( !effect.player->dragonflight_opts.ruby_whelp_shell_training.empty() )
+  if ( !effect.player->dragonflight_opts.ruby_whelp_shell_training.is_default() )
   {
     training_str = effect.player->dragonflight_opts.ruby_whelp_shell_training;
   }
 
   std::string_view context_str = effect.player->sim->dragonflight_opts.ruby_whelp_shell_context;
-  if ( !effect.player->dragonflight_opts.ruby_whelp_shell_context.empty() )
+  if ( !effect.player->dragonflight_opts.ruby_whelp_shell_context.is_default() )
   {
     context_str = effect.player->dragonflight_opts.ruby_whelp_shell_context;
   }
@@ -3756,12 +3752,12 @@ void screaming_black_dragonscale_use( special_effect_t& effect )
 
 // Anshuul the Cosmic Wanderer
 // 402583 Driver
-// 402574 Damage Value 
+// 402574 Damage Value
 void anshuul_the_cosmic_wanderer( special_effect_t& effect )
 {
-  auto damage = create_proc_action<generic_aoe_proc_t>( "anshuul_the_cosmic_wanderer", effect, "anshuul_the_cosmic_wanderer", effect.driver(), true );
-  damage -> base_dd_min = damage -> base_dd_max = effect.trigger() -> effectN( 1 ).average( effect.item );
-  damage -> set_school( SCHOOL_COSMIC ); // Manually set the spell school, School set to none in data.
+  auto damage = create_proc_action<generic_aoe_proc_t>( "anshuul_the_cosmic_wanderer", effect,
+                                                        "anshuul_the_cosmic_wanderer", effect.driver(), true );
+  damage->base_dd_min = damage->base_dd_max = effect.trigger()->effectN( 1 ).average( effect.item );
   effect.execute_action = damage;
 }
 
@@ -3863,6 +3859,7 @@ void neltharions_call_to_chaos( special_effect_t& effect )
 
   // After setting up the buff set the driver to the Class Specific Driver that holds RPPM Data
   effect.spell_id = driver_id;
+  std::set<unsigned> proc_spell_id;
 
   // Triggers only on AoE Abilities - Abilities that *can* AoE or abilities that *did* AoE. Evokers need a hack.
   switch ( effect.player->type )
@@ -3881,6 +3878,15 @@ void neltharions_call_to_chaos( special_effect_t& effect )
           } );
       break;
     case WARRIOR:
+      proc_spell_id = { { 1680, 190411, 396719, 6343, 384318, 376079, 46968, 845, 262161, 227847, 385059, 228920, 6572  } };
+      // only true AoE, in order - Whirlwind Arms, Whirlwind Fury, Thunder Clap, Thunder Clap Prot, Thunderous Roar
+      // Spear of Bastion, Shockwave, Cleave, Warbreaker, Bladestorm, Odyns Fury, Ravager, Revenge
+      effect.player->callbacks.register_callback_trigger_function(
+          driver_id, dbc_proc_callback_t::trigger_fn_type::CONDITION,
+          [ proc_spell_id ]( const dbc_proc_callback_t*, action_t* a, action_state_t* ) {
+            return range::contains( proc_spell_id, a->data().id() );
+          } );
+      break;
     case PALADIN:
     case MAGE:
     case DEMON_HUNTER:
@@ -3888,7 +3894,7 @@ void neltharions_call_to_chaos( special_effect_t& effect )
       // Evoker is unique with it working on cleave abilities. Other classes likely need an ability whitelist but this is a better aproximation for now.
       effect.player->callbacks.register_callback_trigger_function(
           driver_id, dbc_proc_callback_t::trigger_fn_type::CONDITION,
-          []( const dbc_proc_callback_t*, action_t* a, action_state_t* s ) { return a->n_targets() == -1; } );
+          []( const dbc_proc_callback_t*, action_t* a, action_state_t* ) { return a->n_targets() == -1; } );
   }
 
   new dbc_proc_callback_t( effect.player, effect );
@@ -3921,8 +3927,8 @@ void neltharions_call_to_dominance( special_effect_t& effect )
   stat_effect->type = SPECIAL_EFFECT_EQUIP;
   stat_effect->source = SPECIAL_EFFECT_SOURCE_ITEM;
 
-  std::set<int> proc_spell_id;
-  int driver_id = effect.spell_id;
+  std::set<unsigned> proc_spell_id;
+  unsigned driver_id = effect.spell_id;
 
   switch ( effect.player->specialization() )
   {
@@ -3952,7 +3958,7 @@ void neltharions_call_to_dominance( special_effect_t& effect )
       break;
     case WARLOCK_DESTRUCTION:
       driver_id = 408256;
-      proc_spell_id = { { 1122, 387160 } }; // Summon Infernal and Summon Blasphemy (Avatar of Destruction)
+      proc_spell_id = { { 1122 /*, 387160 */ } }; // Summon Infernal. 2023-04-30 PTR: Summon Blasphemy no longer procs trinket. May be intentional.
       break;
     case WARLOCK_DEMONOLOGY:
       driver_id = 408256;
@@ -3964,7 +3970,7 @@ void neltharions_call_to_dominance( special_effect_t& effect )
       break;
     case HUNTER_SURVIVAL:
       driver_id = 408262;
-      proc_spell_id = { { 201430, 360952 } }; // Stampede and Coordinated Assault
+      proc_spell_id = { { 201430, 360969 } }; // Stampede and Coordinated Assault
       break;
     case HUNTER_MARKSMANSHIP:
       driver_id = 408262;
@@ -3989,7 +3995,7 @@ void neltharions_call_to_dominance( special_effect_t& effect )
     } );
 
   stat_effect->player->callbacks.register_callback_execute_function(
-    stat_effect->spell_id, [ stacking_buff, stat_buff ]( const dbc_proc_callback_t* cb, action_t* a, action_state_t* s ) {
+    stat_effect->spell_id, [ stacking_buff, stat_buff ]( const dbc_proc_callback_t*, action_t*, action_state_t* ) {
       // 2023-04-21 PTR: Subsequent triggers will override existing buff even if lower value (tested with Beast Mastery)
       if ( stacking_buff->check() )
       {
@@ -4069,7 +4075,9 @@ void elementium_pocket_anvil( special_effect_t& e )
       : generic_proc_t( e, "echoed_flare", e.player->find_spell( 401324 ) ),
         use( create_proc_action<elementium_pocket_anvil_use_t>( "anvil_strike", e ) )
     {
-      base_dd_min = base_dd_max = e.player->find_spell( 401303 )->effectN( 1 ).average( e.item );
+      // 27-4-2023, Probably a bug? Damage value on tooltip multiplied by 0.6x. Tooltip matches in game test result.
+      // Retest later to ensure this is still the behavior experienced. 
+      base_dd_min = base_dd_max = e.player->find_spell( 401303 )->effectN( 1 ).average( e.item ) * 0.6;
       add_child( use );
     }
 
@@ -4149,13 +4157,13 @@ void elementium_pocket_anvil( special_effect_t& e )
       break;
     case ROGUE:
       driver_id = 408534;
-      e.player->sim->error( "Rogue Abilities not Whitelisted in Elementium Pocket Anvil" );
-      /*
-      proc_spell_id = {
-        {
-          Spell Ids, seperated by commas
-        }
-      };*/
+      // Does not currently work on Shadowstrike for Subtley or Ambush for Assassination/Outlaw
+      proc_spell_id = { { // Assassination
+                          5374, 27576,
+                          // Outlaw -- Sinister Strike
+                          193315, 197834,
+                          // Subtlety -- Backstab, Gloomblade
+                          53, 200758 } };
       break;
     case SHAMAN:
       driver_id     = 408584;
@@ -4227,7 +4235,7 @@ void ominous_chromatic_essence( special_effect_t& e )
   buff_t* emerald_minor;
   double main_value       = e.driver()->effectN( 1 ).average( e.item );
   double minor_value      = e.driver()->effectN( 2 ).average( e.item );
-  const auto& flight      = e.player->sim->dragonflight_opts.ominous_chromatic_essence_dragonflight;
+  const auto& flight      = e.player->dragonflight_opts.ominous_chromatic_essence_dragonflight;
   bool valid              = false;
   bool has_obsidian_major = false;
   bool has_ruby_major     = false;
@@ -4285,24 +4293,55 @@ void ominous_chromatic_essence( special_effect_t& e )
   }
 
   auto splits =
-      util::string_split<std::string_view>( e.player->sim->dragonflight_opts.ominous_chromatic_essence_allies, "/" );
+      util::string_split<std::string_view>( e.player->dragonflight_opts.ominous_chromatic_essence_allies, "/" );
   for ( auto s : splits )
   {
-    if ( util::str_compare_ci( s, "obsidian" ) && !has_obsidian_major )
-      has_obsidian_minor = true;
-    else if ( util::str_compare_ci( s, "ruby" ) && !has_ruby_major )
-      has_ruby_minor = true;
-    else if ( util::str_compare_ci( s, "bronze" ) && !has_bronze_major )
-      has_bronze_minor = true;
-    else if ( util::str_compare_ci( s, "azure" ) && !has_azure_major )
-      has_azure_minor = true;
-    else if ( util::str_compare_ci( s, "emerald" ) && !has_emerald_major )
-      has_emerald_minor = true;
+    if ( util::str_compare_ci( s, "obsidian" ) )
+    {
+      if ( !has_obsidian_major )
+      {
+        has_obsidian_minor = true;
+      }
+    }
+    else if ( util::str_compare_ci( s, "ruby" ) )
+    {
+      if ( !has_ruby_major )
+      {
+        has_ruby_minor = true;
+      }
+    }
+    else if ( util::str_compare_ci( s, "bronze" ) )
+    {
+      if ( !has_bronze_major )
+      {
+        has_bronze_minor = true;
+      }
+    }
+    else if ( util::str_compare_ci( s, "azure" ) )
+    {
+      if ( !has_azure_major )
+      {
+        has_azure_minor = true;
+      }
+    }
+    else if ( util::str_compare_ci( s, "emerald" ) )
+    {
+      if ( !has_emerald_major )
+      {
+        has_emerald_minor = true;
+      }
+    }
     else if ( util::str_compare_ci( s, "" ) )
+    {
       return;
+    }
     else
+    {
       e.player->sim->error(
-          "Invalid Option for Ominous Chromatic Essence Allies. Your Main Dragonflight can not be entered." );
+          "'{}' Is not a valid Dragonflight for Ominous Chromatic Essence Allies. Options are: obsidian, azure, "
+          "emerald, ruby, or bronze",
+          s );
+    }
   }
 
   // Minor Buffs
@@ -4343,7 +4382,7 @@ void ominous_chromatic_essence( special_effect_t& e )
   {
     e.player->register_combat_begin( [ buff, obsidian_minor, ruby_minor, bronze_minor, azure_minor, emerald_minor,
                                        has_obsidian_minor, has_ruby_minor, has_bronze_minor, has_azure_minor,
-                                       has_emerald_minor ]( player_t* p ) {
+                                       has_emerald_minor ]( player_t* ) {
       buff->trigger();
 
       if ( has_obsidian_minor )
@@ -4472,6 +4511,17 @@ void vessel_of_searing_shadow( special_effect_t& e )
   new dbc_proc_callback_t( e.player, e );
 }
 
+// Heart of Thunder
+// 413419 Driver
+// 413423 Damage
+void heart_of_thunder ( special_effect_t& e )
+{
+  auto damage = create_proc_action<generic_aoe_proc_t>( "thunderous_pulse", e, "thunderous_pulse", e.trigger() );
+
+  e.execute_action = damage;
+  new dbc_proc_callback_t( e.player, e );
+}
+
 // Weapons
 void bronzed_grip_wrappings( special_effect_t& effect )
 {
@@ -4541,7 +4591,7 @@ void spore_keepers_baton( special_effect_t& effect )
                   ->add_stat_from_effect( 1, effect.driver()->effectN( 1 ).average( effect.item ) );
 
   effect.player->callbacks.register_callback_execute_function(
-      effect.driver()->id(), [ dot, buff ]( const dbc_proc_callback_t* cb, action_t* a, action_state_t* s ) {
+      effect.driver()->id(), [ dot, buff ]( const dbc_proc_callback_t* cb, action_t*, action_state_t* s ) {
         switch ( s->proc_type() )
         {
           case PROC1_MAGIC_HEAL:
@@ -4701,9 +4751,8 @@ void ashkandur( special_effect_t& e )
     {
       double m = generic_proc_t::composite_target_multiplier( t );
 
-      if ( player->sim->fight_style == FIGHT_STYLE_DUNGEON_ROUTE &&
-           player->target->race == RACE_HUMANOID ||
-       player->sim->dragonflight_opts.ashkandur_humanoid )
+      if ( ( player->sim->fight_style == FIGHT_STYLE_DUNGEON_ROUTE && player->target->race == RACE_HUMANOID ) ||
+           player->dragonflight_opts.ashkandur_humanoid )
       {
         m *= 2; // Doubles damage against humanoid targets. 
       }
@@ -4780,8 +4829,9 @@ void djaruun_pillar_of_the_elder_flame ( special_effect_t& effect )
     djaruun_pillar_of_the_elder_flame_siphon_t( const special_effect_t& effect )
       : generic_aoe_proc_t( effect, "djaruun_pillar_of_the_elder_flame_siphon", effect.player->find_spell( 408815 ) )
     {
-      base_dd_min = base_dd_max = effect.player->find_spell( 403545 ) -> effectN( 1 ).average( effect.item );
+      base_dd_min = base_dd_max = effect.player->find_spell( 403545 )->effectN( 1 ).average( effect.item );
       split_aoe_damage = false;
+      name_str_reporting = "Siphon";
     }
   };
 
@@ -4793,6 +4843,7 @@ void djaruun_pillar_of_the_elder_flame ( special_effect_t& effect )
       : generic_aoe_proc_t( effect, "djaruun_pillar_of_the_elder_flame_on_hit", effect.player->find_spell( 408836 ), true )
     {
       base_dd_min = base_dd_max = effect.player->find_spell( 403545 ) -> effectN( 2 ).average( effect.item );
+      name_str_reporting = "Wave";
     }
   };
 
@@ -5001,10 +5052,9 @@ void elemental_lariat( special_effect_t& effect )
     return;
 
   auto val = effect.driver()->effectN( 1 ).average( effect.item );
-  auto dur = effect.player->is_ptr()
-                 ? timespan_t::from_seconds( effect.driver()->effectN( 3 ).base_value() +
-                                             effect.driver()->effectN( 2 ).base_value() * gem_count )
-                 : timespan_t::from_seconds( effect.driver()->effectN( 2 ).base_value() );
+  auto dur = timespan_t::from_seconds( effect.driver()->effectN( 3 ).base_value() +
+                                       effect.driver()->effectN( 2 ).base_value() * gem_count );
+
   auto cb = new dbc_proc_callback_t( effect.player, effect );
   std::vector<buff_t*> buffs;
 
@@ -5232,7 +5282,7 @@ void adaptive_dracothyst_armguards( special_effect_t& effect )
     buff->add_stat_from_effect( 1, effect.driver()->effectN( 2 ).average( effect.item ) );
     effect.custom_buff  = buff;
     effect.proc_flags2_ = PF2_CRIT;
-    auto dbc            = new dbc_proc_callback_t( effect.player, effect );
+    new dbc_proc_callback_t( effect.player, effect );
   }
   else
   {
@@ -5415,7 +5465,7 @@ void roiling_shadowflame( special_effect_t& e )
     {
       generic_proc_t::activate();
 
-      // Cooldown reduction is removed when dropping combat in dungeon-style fight types
+      // Stacking buff is removed when dropping combat in dungeon-style fight types
       sim->target_non_sleeping_list.register_callback( [ this ]( player_t* ) {
         if ( sim->target_non_sleeping_list.empty() )
           buff->expire();
@@ -5435,6 +5485,88 @@ void roiling_shadowflame( special_effect_t& e )
 
   new dbc_proc_callback_t( e.player, e );
 }
+
+// Stacking debuff: 407087
+// Damage debuff: 407090
+void ever_decaying_spores( special_effect_t& effect )
+{
+  struct ever_decaying_spores_damage_t : generic_proc_t
+  {
+    ever_decaying_spores_damage_t( const special_effect_t& effect )
+      : generic_proc_t( effect, "everdecaying_spores", effect.player->find_spell( 407090 ) )
+    {
+      base_td = effect.driver()->effectN( 2 ).average( effect.item ) * toxified_mul( effect.player );
+    }
+  };
+
+  struct ever_decaying_spores_cb_t : dbc_proc_callback_t
+  {
+    action_t* damage;
+
+    ever_decaying_spores_cb_t( const special_effect_t& effect )
+      : dbc_proc_callback_t( effect.player, effect ),
+        damage( create_proc_action<ever_decaying_spores_damage_t>( "ever_decaying_spores", effect ) )
+    {
+    }
+
+    void execute( action_t* a, action_state_t* s ) override
+    {
+      dbc_proc_callback_t::execute( a, s );
+
+      actor_target_data_t* td = a->player->get_target_data( s->target );
+
+      if ( !td->debuff.ever_decaying_spores->stack_change_callback )
+      {
+        td->debuff.ever_decaying_spores->set_stack_change_callback( [ this ]( buff_t* b, int /* old_ */, int new_ ) {
+          if ( new_ == 0 )
+          {
+            damage->set_target( b->player );
+            damage->execute();
+          }
+        } );
+      }
+
+      // Every time this procs it has a chance to damage the player instead of applying a debuff stack and it will also eat the proc 
+      // if the debuff is ticking on the target.
+      // Testing shows this chance is currently 20% but since it's not found in spell data will have to rechecked in case this changes.
+      if ( rng().roll( 0.8 ) )
+      {
+        td->debuff.ever_decaying_spores->trigger();
+        if ( td->debuff.ever_decaying_spores->at_max_stacks() )
+          td->debuff.ever_decaying_spores->expire();
+      }
+    }
+
+    
+    void trigger( action_t* a, action_state_t* s ) override
+    {
+      if ( !damage->get_dot( s->target )->is_ticking() )
+        dbc_proc_callback_t::trigger( a, s );
+    }
+  };
+
+  new ever_decaying_spores_cb_t( effect );
+}
+
+struct ever_decaying_spores_initializer_t : public item_targetdata_initializer_t
+{
+  ever_decaying_spores_initializer_t() : item_targetdata_initializer_t( 406244 )
+  {
+  }
+
+  void operator()( actor_target_data_t* td ) const override
+  {
+    if ( !find_effect( td->source ) )
+    {
+      td->debuff.ever_decaying_spores = make_buff( *td, "ever_decaying_spores" )->set_quiet( true );
+      return;
+    }
+
+    assert( !td->debuff.ever_decaying_spores );
+    td->debuff.ever_decaying_spores = make_buff( *td, "ever_decaying_spores", td->source->find_spell( 407087 ) );
+    td->debuff.ever_decaying_spores->reset();
+  }
+};
 
 }  // namespace items
 
@@ -6030,6 +6162,7 @@ struct humming_arcane_stone_t : public damage_stone_t
     damage_stone_t( e, "humming_arcane_stone", 405206 )
   {
     damage = create_proc_action<humming_arcane_stone_damage_t>( "humming_arcane_stone_damage", e );
+    damage->name_str_reporting = "Missile";
     add_child( damage );
 
     std::set<primordial_stone_family_e> stone_families;
@@ -6518,7 +6651,7 @@ void register_special_effects()
   register_special_effect( 401238, items::ward_of_the_faceless_ire );
   register_special_effect( 395175, items::treemouths_festering_splinter );
   register_special_effect( 401395, items::vessel_of_searing_shadow );
-
+  register_special_effect( 413419, items::heart_of_thunder );
 
   // Weapons
   register_special_effect( 396442, items::bronzed_grip_wrappings );             // bronzed grip wrappings embellishment
@@ -6550,6 +6683,7 @@ void register_special_effects()
   register_special_effect( 409434, items::voice_of_the_silent_star, true );
   register_special_effect( 406254, items::roiling_shadowflame );
   register_special_effect( { 406219, 406928 }, items::adaptive_dracothyst_armguards );
+  register_special_effect( 406244, items::ever_decaying_spores );
   // Sets
   register_special_effect( { 393620, 393982 }, sets::playful_spirits_fur );
   register_special_effect( { 393983, 393762 }, sets::horizon_striders_garments );
@@ -6591,6 +6725,7 @@ void register_special_effects()
   register_special_effect( 377465, DISABLED_EFFECT );  // Desperate Invocation (cdr proc)
   register_special_effect( 398396, DISABLED_EFFECT );  // emerald coach's whistle on-use
   register_special_effect( 382132, DISABLED_EFFECT );  // Iceblood Deathsnare damage data
+  register_special_effect( 410530, DISABLED_EFFECT );  // Infurious Boots of Reprieve - Mettle (NYI)
 }
 
 void register_target_data_initializers( sim_t& sim )
@@ -6601,6 +6736,7 @@ void register_target_data_initializers( sim_t& sim )
   sim.register_target_data_initializer( items::spiteful_storm_initializer_t() );
   sim.register_target_data_initializer( items::heavens_nemesis_initializer_t() );
   sim.register_target_data_initializer( items::iceblood_deathsnare_initializer_t() );
+  sim.register_target_data_initializer( items::ever_decaying_spores_initializer_t() );
 }
 
 void register_hotfixes()

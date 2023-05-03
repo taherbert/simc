@@ -656,9 +656,6 @@ namespace monk
       double composite_persistent_multiplier( const action_state_t *action_state ) const override
       {
         double pm = ab::composite_persistent_multiplier( action_state );
-
-        pm *= 1 + p()->talent.general.ferocity_of_xuen->effectN( 1 ).percent();
-
         return pm;
       }
 
@@ -2892,6 +2889,9 @@ namespace monk
 
           if ( p()->buff.serenity->check() )
             am *= 1 + p()->talent.windwalker.serenity->effectN( 7 ).percent();
+
+          if ( p()->buff.hit_combo->check() )
+            am *= 1 + p()->passives.hit_combo->effectN( 3 ).percent();
 
           return am;
         }
@@ -7594,9 +7594,8 @@ namespace monk
     passives.chi_wave_heal = find_spell( 132463 );
     passives.claw_of_the_white_tiger = find_spell( 389541 );
     passives.chi_burst_damage = find_spell( 148135 );
-    passives.faeline_stomp_damage = find_spell( 345727 );
+    passives.faeline_stomp_damage = find_spell( 388207 );
     passives.fortifying_brew = find_spell( 120954 );
-    // talent.healing_elixir -> effectN( 1 ).trigger() -> effectN( 1 ).trigger()
     passives.healing_elixir = find_spell( 122281 );
     passives.mystic_touch = find_spell( 8647 );
 
@@ -7639,7 +7638,7 @@ namespace monk
     passives.empowered_tiger_lightning = find_spell( 335913 );
     passives.fae_exposure_dmg = find_spell( 395414 );
     passives.fae_exposure_heal = find_spell( 395413 );
-    passives.faeline_stomp_ww_damage = find_spell( 327264 );
+    passives.faeline_stomp_ww_damage = find_spell( 388201 );
     passives.fists_of_fury_tick = find_spell( 117418 );
     passives.flying_serpent_kick_damage = find_spell( 123586 );
     passives.focus_of_xuen = find_spell( 252768 );
@@ -8993,6 +8992,8 @@ namespace monk
     if ( action->data().affected_by( passives.hit_combo->effectN( 1 ) ) )
       multiplier *= 1 + buff.hit_combo->check() * passives.hit_combo->effectN( 1 ).percent();
 
+    multiplier *= 1 + talent.general.ferocity_of_xuen->effectN( 1 ).percent();
+
     return multiplier;
   }
 
@@ -9003,6 +9004,8 @@ namespace monk
 
     if ( action->data().affected_by( passives.hit_combo->effectN( 2 ) ) )
       multiplier *= 1 + buff.hit_combo->check() * passives.hit_combo->effectN( 2 ).percent();
+
+    multiplier *= 1 + talent.general.ferocity_of_xuen->effectN( 1 ).percent();
 
     return multiplier;
   }
@@ -9028,13 +9031,10 @@ namespace monk
     double multiplier = player_t::composite_player_pet_damage_multiplier( state, guardian );
 
     // Currently is a bug that Ferocity of Xuen is not getting applied to pets. Getting fixed in 10.1
-    if ( is_ptr() )
-    {
-      if ( guardian )
-        multiplier *= 1 + talent.general.ferocity_of_xuen->effectN( 2 ).percent();
-      else
-        multiplier *= 1 + talent.general.ferocity_of_xuen->effectN( 3 ).percent();
-    }
+    if ( guardian )
+      multiplier *= 1 + talent.general.ferocity_of_xuen->effectN( 2 ).percent();
+    else
+      multiplier *= 1 + talent.general.ferocity_of_xuen->effectN( 3 ).percent();
 
     multiplier *= 1 + buff.hit_combo->check() * passives.hit_combo->effectN( 4 ).percent();
 
@@ -9644,7 +9644,7 @@ namespace monk
     double stagger_base = stagger_base_value();
     // TODO: somehow pull this from "enemy_t::armor_coefficient( target_level, tank_dummy_e::MYTHIC )" without crashing
     double k = dbc->armor_mitigation_constant( target_level );
-    k *= ( is_ptr() ? 1.62800002098 : 1.38399994373 );  // Mythic Raid
+    k *= 1.62800002098;  // Mythic Raid
 
     double stagger = stagger_base / ( stagger_base + k );
 
@@ -10039,7 +10039,6 @@ namespace monk
       ReportIssue( "Xuen's Bond is triggering from SEF combo strikes", "2023-02-21", true );
       ReportIssue( "Jade Ignition is reduced by SEF but not copied", "2023-02-22", true );
       ReportIssue( "Blackout Combo buffs both the initial and periodic effect of Breath of Fire", "2023-03-08", true );
-      ReportIssue( "Ferocity of Xuen not increasing your summoned pet damage", "2023-04-04", true );
 
       // =================================================
 

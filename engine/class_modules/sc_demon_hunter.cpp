@@ -348,7 +348,7 @@ public:
       player_talent_t chaos_theory;
       player_talent_t restless_hunter;
       player_talent_t inner_demon;
-      player_talent_t accelerating_blade;
+      player_talent_t accelerated_blade;
       player_talent_t ragefire;
 
       player_talent_t know_your_enemy;
@@ -1383,7 +1383,7 @@ public:
     ab::apply_affecting_aura( p->talent.havoc.blind_fury );
     ab::apply_affecting_aura( p->talent.havoc.looks_can_kill );
     ab::apply_affecting_aura( p->talent.havoc.tactical_retreat );
-    ab::apply_affecting_aura( p->talent.havoc.accelerating_blade );
+    ab::apply_affecting_aura( p->talent.havoc.accelerated_blade );
     ab::apply_affecting_aura( p->talent.havoc.any_means_necessary );
     ab::apply_affecting_aura( p->talent.havoc.dancing_with_fate );
 
@@ -1516,6 +1516,8 @@ public:
 
     // For reporting purposes only, as the game displays this as SCHOOL_CHAOS
     if ( ab::stats->school == SCHOOL_CHROMATIC )
+      ab::stats->school = SCHOOL_CHAOS;
+    if ( ab::stats->school == SCHOOL_CHROMASTRIKE )
       ab::stats->school = SCHOOL_CHAOS;
 
     ab::init_finished();
@@ -2725,6 +2727,19 @@ struct sigil_of_flame_damage_t : public demon_hunter_sigil_t
       energize_resource = RESOURCE_FURY;
       energize_amount = p->talent.demon_hunter.flames_of_fury->effectN( 1 ).resource();
     }
+  }
+
+  double action_ta_multiplier() const override
+  {
+    double am = demon_hunter_sigil_t::action_ta_multiplier();
+
+    // 2023-05-01 -- Sigil of Flame's DoT currently deals twice the intended damage.
+    //               There are currently two Apply Aura: Periodic Damage effects in the spell data
+    //               (Effects #2 and #3) which could potentially be the reason for this.
+    if ( p()->bugs )
+      am *= 2.0;
+
+    return am;
   }
 
   void impact( action_state_t* s ) override
@@ -4217,6 +4232,8 @@ struct chaos_strike_base_t : public demon_hunter_attack_t
 
     void execute() override
     {
+      demon_hunter_attack_t::execute();
+      
       if ( may_refund )
       {
         // Technically this appears to have a 0.5s ICD, but this is handled elsewhere
@@ -4225,15 +4242,12 @@ struct chaos_strike_base_t : public demon_hunter_attack_t
         {
           p()->resource_gain( RESOURCE_FURY, p()->spec.chaos_strike_fury->effectN( 1 ).resource( RESOURCE_FURY ), parent->gain );
         }
-
-        // 2023-01-07 -- Logs show the refund and Chaos Theory buff fade happens before damage is dealt
+                
         if ( p()->talent.havoc.chaos_theory->ok() )
         {
           p()->buff.chaos_theory->expire();
         }
       }
-
-      demon_hunter_attack_t::execute();
     }
 
     void impact( action_state_t* s ) override
@@ -5595,6 +5609,7 @@ demon_hunter_td_t::demon_hunter_td_t( player_t* target, demon_hunter_t& p )
   dots.the_hunt = target->get_dot( "the_hunt_dot", &p );
 
   debuffs.serrated_glaive = make_buff( *this, "serrated_glaive", p.spec.serrated_glaive_debuff )
+    ->set_refresh_behavior( buff_refresh_behavior::PANDEMIC )
     ->set_default_value( p.talent.havoc.serrated_glaive->effectN( 1 ).percent() );
 
   target->register_on_demise_callback( &p, [this]( player_t* ) { target_demise(); } );
@@ -6479,12 +6494,7 @@ void demon_hunter_t::init_spells()
   talent.havoc.chaos_theory = find_talent_spell( talent_tree::SPECIALIZATION, "Chaos Theory" );
   talent.havoc.restless_hunter = find_talent_spell( talent_tree::SPECIALIZATION, "Restless Hunter" );
   talent.havoc.inner_demon = find_talent_spell( talent_tree::SPECIALIZATION, "Inner Demon" );
-  // TODO 10.1: rename accelerating_blade and remove fallback
-  talent.havoc.accelerating_blade = find_talent_spell( talent_tree::SPECIALIZATION, "Accelerating Blade" );
-  if ( talent.havoc.accelerating_blade.spell() == spell_data_t::not_found() )
-  {
-    talent.havoc.accelerating_blade = find_talent_spell( talent_tree::SPECIALIZATION, "Accelerated Blade" );
-  }
+  talent.havoc.accelerated_blade = find_talent_spell( talent_tree::SPECIALIZATION, "Accelerated Blade" );
   talent.havoc.ragefire = find_talent_spell( talent_tree::SPECIALIZATION, "Ragefire" );
 
   talent.havoc.know_your_enemy = find_talent_spell( talent_tree::SPECIALIZATION, "Know Your Enemy" );

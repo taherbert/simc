@@ -1408,7 +1408,7 @@ class SpellDataGenerator(DataGenerator):
          401303, 401306, 408513, 408533, 408534, 408535, 408536, 408537, 408538, 408539, 408540, 408584, 408578, 410264, 401324, # Elemntium Pocket Anvil
          408815, 408832, 408835, 408836, 408821, 403545, # Djaruun, Pillar of the Elder Flame
          408667, 408671, 408675, 408770, 408682, 408694, # Dragonfire Bomb Dispenser
-         406244, 378758, 407090, # Spore Colony Shoulderguards
+         406244, 378758, 407090, 407092, # Spore Colony Shoulderguards
          407949, 408015, # Tinker: Shadowflame Rockets
          406753, 406764, 406770, # Shadowflame Wreathe
          401513, 405620, 401516, 405613, 402221, 405615, 401521, 405608, 401518, 405612, 401519, 405611, # Glimmering Chromatic orb
@@ -1605,6 +1605,7 @@ class SpellDataGenerator(DataGenerator):
             ( 393727, 0 ), ( 393728, 0 ), ( 394879, 0 ), ( 394888, 0 ), # T29 Outlaw Set Bonus Spells
             ( 393729, 0 ), ( 393730, 0 ), # T29 Subtlety Set Bonus Spells
             ( 409604, 0 ), ( 409605, 0 ), # T30 Outlaw Set Bonus Spells
+            ( 409483, 0 ),          # T30 Assassination Set Bonus Spells
         ),
 
         # Priest:

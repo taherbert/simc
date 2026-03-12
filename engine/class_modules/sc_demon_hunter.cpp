@@ -1215,6 +1215,10 @@ public:
     double wounded_quarry_chance_vengeance = 0.30;
     // Proc rate for Wounded Quarry for Havoc
     double wounded_quarry_chance_havoc = 0.10;
+    // Proc rate for Voidfall per current building stack count (from WCL analysis)
+    double voidfall_proc_chance_0_stacks = 0.40;
+    double voidfall_proc_chance_1_stacks = 0.32;
+    double voidfall_proc_chance_2_stacks = 0.275;
     // How many seconds that Vengeful Retreat locks out Felblade
     double felblade_lockout_from_vengeful_retreat    = 0.6;
     bool enable_dungeon_slice                        = false;
@@ -2948,7 +2952,22 @@ struct voidfall_building_trigger_t : public BASE
     if ( !BASE::p()->talent.annihilator.voidfall->ok() )
       return;
 
-    if ( !BASE::rng().roll( BASE::p()->talent.annihilator.voidfall->effectN( 3 ).percent() ) )
+    // proc chance decreases with current building stacks (from WCL analysis)
+    double proc_chance;
+    int stacks = BASE::p()->buff.voidfall_building->check();
+    switch ( stacks )
+    {
+      case 0:
+        proc_chance = BASE::p()->options.voidfall_proc_chance_0_stacks;
+        break;
+      case 1:
+        proc_chance = BASE::p()->options.voidfall_proc_chance_1_stacks;
+        break;
+      default:
+        proc_chance = BASE::p()->options.voidfall_proc_chance_2_stacks;
+        break;
+    }
+    if ( !BASE::rng().roll( proc_chance ) )
       return;
 
     // can't gain building while spending is up
@@ -10113,6 +10132,9 @@ void demon_hunter_t::create_options()
       opt_float( "soul_fragment_movement_consume_chance", options.soul_fragment_movement_consume_chance, 0, 1 ) );
   add_option( opt_float( "wounded_quarry_chance_vengeance", options.wounded_quarry_chance_vengeance, 0, 1 ) );
   add_option( opt_float( "wounded_quarry_chance_havoc", options.wounded_quarry_chance_havoc, 0, 1 ) );
+  add_option( opt_float( "voidfall_proc_chance_0_stacks", options.voidfall_proc_chance_0_stacks, 0, 1 ) );
+  add_option( opt_float( "voidfall_proc_chance_1_stacks", options.voidfall_proc_chance_1_stacks, 0, 1 ) );
+  add_option( opt_float( "voidfall_proc_chance_2_stacks", options.voidfall_proc_chance_2_stacks, 0, 1 ) );
   add_option(
       opt_float( "felblade_lockout_from_vengeful_retreat", options.felblade_lockout_from_vengeful_retreat, 0, 1 ) );
   add_option( opt_bool( "enable_dungeon_slice", options.enable_dungeon_slice ) );

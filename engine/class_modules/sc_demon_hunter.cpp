@@ -4446,6 +4446,11 @@ struct sigil_of_flame_t : public demon_hunter_spell_t
       if ( auto e = sigil->create_sigil_expression( name ) )
         return e;
     }
+    else if ( util::str_compare_ci( name, "placed" ) || util::str_compare_ci( name, "sigil_placed" ) ||
+              util::str_compare_ci( name, "activation_time" ) || util::str_compare_ci( name, "delay" ) )
+    {
+      return expr_t::create_constant( name, 0 );
+    }
 
     return demon_hunter_spell_t::create_expression( name );
   }
@@ -5397,6 +5402,11 @@ struct sigil_of_spite_t : public demon_hunter_spell_t
       if ( auto e = sigil->create_sigil_expression( name ) )
         return e;
     }
+    else if ( util::str_compare_ci( name, "placed" ) || util::str_compare_ci( name, "sigil_placed" ) ||
+              util::str_compare_ci( name, "activation_time" ) || util::str_compare_ci( name, "delay" ) )
+    {
+      return expr_t::create_constant( name, 0 );
+    }
 
     return demon_hunter_spell_t::create_expression( name );
   }
@@ -5545,6 +5555,11 @@ struct sigil_of_misery_t : public demon_hunter_spell_t
       if ( auto e = sigil->create_sigil_expression( name ) )
         return e;
     }
+    else if ( util::str_compare_ci( name, "placed" ) || util::str_compare_ci( name, "sigil_placed" ) ||
+              util::str_compare_ci( name, "activation_time" ) || util::str_compare_ci( name, "delay" ) )
+    {
+      return expr_t::create_constant( name, 0 );
+    }
 
     return demon_hunter_spell_t::create_expression( name );
   }
@@ -5591,6 +5606,11 @@ struct sigil_of_silence_t : public demon_hunter_spell_t
       if ( auto e = sigil->create_sigil_expression( name ) )
         return e;
     }
+    else if ( util::str_compare_ci( name, "placed" ) || util::str_compare_ci( name, "sigil_placed" ) ||
+              util::str_compare_ci( name, "activation_time" ) || util::str_compare_ci( name, "delay" ) )
+    {
+      return expr_t::create_constant( name, 0 );
+    }
 
     return demon_hunter_spell_t::create_expression( name );
   }
@@ -5636,6 +5656,11 @@ struct sigil_of_chains_t : public demon_hunter_spell_t
     {
       if ( auto e = sigil->create_sigil_expression( name ) )
         return e;
+    }
+    else if ( util::str_compare_ci( name, "placed" ) || util::str_compare_ci( name, "sigil_placed" ) ||
+              util::str_compare_ci( name, "activation_time" ) || util::str_compare_ci( name, "delay" ) )
+    {
+      return expr_t::create_constant( name, 0 );
     }
 
     return demon_hunter_spell_t::create_expression( name );
